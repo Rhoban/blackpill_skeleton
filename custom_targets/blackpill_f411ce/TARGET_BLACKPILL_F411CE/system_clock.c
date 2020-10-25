@@ -21,10 +21,10 @@
   *                     | 2- USE_PLL_HSE_XTAL (external 8 MHz xtal)  |
   *                     | 3- USE_PLL_HSI (internal 16 MHz)           |
   *-----------------------------------------------------------------------------
-  * SYSCLK(MHz)         | 100                                        | 96
-  * AHBCLK (MHz)        | 100                                        | 96
-  * APB1CLK (MHz)       |  50                                        | 48
-  * APB2CLK (MHz)       | 100                                        | 96
+  * SYSCLK(MHz)         | 32                                         | 32
+  * AHBCLK (MHz)        | 16                                         | 16
+  * APB1CLK (MHz)       | 16                                         | 16
+  * APB2CLK (MHz)       | 16                                         | 16
   * USB capable         |  NO                                        | YES
   *-----------------------------------------------------------------------------
 **/
@@ -44,6 +44,44 @@ uint8_t SetSysClock_PLL_HSE(uint8_t bypass);
 #if ((CLOCK_SOURCE) & USE_PLL_HSI)
 uint8_t SetSysClock_PLL_HSI(void);
 #endif /* ((CLOCK_SOURCE) & USE_PLL_HSI) */
+
+
+/**
+  * @brief  Setup the microcontroller system
+  *         Initialize the FPU setting, vector table location and External memory
+  *         configuration.
+  * @param  None
+  * @retval None
+  */
+void SystemInit(void)
+{
+    /* FPU settings ------------------------------------------------------------*/
+#if (__FPU_PRESENT == 1) && (__FPU_USED == 1)
+    SCB->CPACR |= ((3UL << 10 * 2) | (3UL << 11 * 2)); /* set CP10 and CP11 Full Access */
+#endif
+    /* Reset the RCC clock configuration to the default reset state ------------*/
+    /* Set HSION bit */
+    RCC->CR |= (uint32_t)0x00000001;
+
+    /* Reset CFGR register */
+    RCC->CFGR = 0x00000000;
+
+    /* Reset HSEON, CSSON and PLLON bits */
+    RCC->CR &= (uint32_t)0xFEF6FFFF;
+
+    /* Reset PLLCFGR register */
+    RCC->PLLCFGR = 0x24003010;
+
+    /* Reset HSEBYP bit */
+    RCC->CR &= (uint32_t)0xFFFBFFFF;
+
+    /* Disable all interrupts */
+    RCC->CIR = 0x00000000;
+
+#if defined (DATA_IN_ExtSRAM) || defined (DATA_IN_ExtSDRAM)
+    SystemInit_ExtMemCtl();
+#endif /* DATA_IN_ExtSRAM || DATA_IN_ExtSDRAM */
+}
 
 
 /**
@@ -98,41 +136,34 @@ uint8_t SetSysClock_PLL_HSE(uint8_t bypass)
     __HAL_RCC_PWR_CLK_ENABLE();
     __HAL_PWR_VOLTAGESCALING_CONFIG(PWR_REGULATOR_VOLTAGE_SCALE2);
 
-    /* Get the Clocks configuration according to the internal RCC registers */
-    HAL_RCC_GetOscConfig(&RCC_OscInitStruct);
+    // Enable HSE oscillator and activate PLL with HSE as source
+    RCC_OscInitStruct.OscillatorType      = RCC_OSCILLATORTYPE_HSE;
+    if (bypass == 0) {
+        RCC_OscInitStruct.HSEState          = RCC_HSE_ON; // External 8 MHz xtal on OSC_IN/OSC_OUT
+    } else {
+        RCC_OscInitStruct.HSEState          = RCC_HSE_BYPASS; // External 8 MHz clock on OSC_IN
+    }
 
-    /* PLL could be already configured by bootlader */
-    if (RCC_OscInitStruct.PLL.PLLState != RCC_PLL_ON) {
-
-        // Enable HSE oscillator and activate PLL with HSE as source
-        RCC_OscInitStruct.OscillatorType      = RCC_OSCILLATORTYPE_HSE;
-        if (bypass == 0) {
-            RCC_OscInitStruct.HSEState          = RCC_HSE_ON; // External 8 MHz xtal on OSC_IN/OSC_OUT
-        } else {
-            RCC_OscInitStruct.HSEState          = RCC_HSE_BYPASS; // External 8 MHz clock on OSC_IN
-        }
-
-        RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
-        RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
-        RCC_OscInitStruct.PLL.PLLM            = 4;             // VCO input clock = 2 MHz (8 MHz / 4)
+    RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+    RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSE;
+    RCC_OscInitStruct.PLL.PLLM            = 25;            // VCO input clock = 1 MHz (25 MHz / 25)
 #if (DEVICE_USBDEVICE)
-        RCC_OscInitStruct.PLL.PLLN            = 192;           // VCO output clock = 384 MHz (2 MHz * 192)
+    RCC_OscInitStruct.PLL.PLLN            = 192;           // VCO output clock = 192 MHz (1 MHz * 192)
 #else /* DEVICE_USBDEVICE */
-        RCC_OscInitStruct.PLL.PLLN            = 200;           // VCO output clock = 400 MHz (2 MHz * 200)
+    RCC_OscInitStruct.PLL.PLLN            = 200;           // VCO output clock = 200 MHz (1 MHz * 200)
 #endif /* DEVICE_USBDEVICE */
-        RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV4; // PLLCLK = 100 MHz or 96 MHz (depending on DEVICE_USBDEVICE)
-        RCC_OscInitStruct.PLL.PLLQ            = 8;             // USB clock = 48 MHz (DEVICE_USBDEVICE=1)
-        if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
-            return 0; // FAIL
-        }
+    RCC_OscInitStruct.PLL.PLLP            = RCC_PLLP_DIV2; // PLLCLK = 100 MHz or 96 MHz (depending on DEVICE_USBDEVICE)
+    RCC_OscInitStruct.PLL.PLLQ            = 4;             // USB clock = 48 MHz (DEVICE_USBDEVICE=1)
+    if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK) {
+        return 0; // FAIL
     }
 
     // Select PLL as system clock source and configure the HCLK, PCLK1 and PCLK2 clocks dividers
     RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_SYSCLK | RCC_CLOCKTYPE_HCLK | RCC_CLOCKTYPE_PCLK1 | RCC_CLOCKTYPE_PCLK2;
-    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK; // 100/96 MHz
-    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;         // 100/96 MHz
-    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;           // 50/48 MHz
-    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;           // 100/96 MHz
+    RCC_ClkInitStruct.SYSCLKSource   = RCC_SYSCLKSOURCE_PLLCLK; // 96/100 MHz
+    RCC_ClkInitStruct.AHBCLKDivider  = RCC_SYSCLK_DIV1;         // 96/100 MHz
+    RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV2;           // 48/50 MHz
+    RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;           // 96/100 MHz
     if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_3) != HAL_OK) {
         return 0; // FAIL
     }

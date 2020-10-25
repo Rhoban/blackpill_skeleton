@@ -1,7 +1,7 @@
 #include "mbed.h"
 #include "shell.h"
 
-DigitalOut led(PC_13);
+DigitalOut led(LED_RED);
 
 SHELL_PARAMETER_FLOAT(a, "A", 0.)
 SHELL_PARAMETER_FLOAT(b, "B", 0.)

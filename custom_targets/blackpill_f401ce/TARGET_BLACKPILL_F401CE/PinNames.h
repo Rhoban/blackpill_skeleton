@@ -38,9 +38,6 @@
 extern "C" {
 #endif
 
-/* If this macro is defined, then constexpr utility functions for pin-map seach can be used. */
-#define STATIC_PINMAP_READY 1
-
 typedef enum {
     ALT0  = 0x100,
     ALT1  = 0x200,
@@ -51,17 +48,16 @@ typedef enum {
 typedef enum {
     PA_0  = 0x00,
     PA_1  = 0x01,
-    PA_1_ALT0 = PA_1 | ALT0,
     PA_2  = 0x02,
+    PA_2_ALT0 = PA_2 | ALT0,
     PA_3  = 0x03,
+    PA_3_ALT0 = PA_3 | ALT0,
     PA_4  = 0x04,
     PA_4_ALT0 = PA_4 | ALT0,
     PA_5  = 0x05,
     PA_6  = 0x06,
     PA_7  = 0x07,
     PA_7_ALT0 = PA_7 | ALT0,
-    PA_7_ALT1 = PA_7 | ALT1,
-    PA_7_ALT2 = PA_7 | ALT2,
     PA_8  = 0x08,
     PA_9  = 0x09,
     PA_10 = 0x0A,
@@ -74,32 +70,24 @@ typedef enum {
 
     PB_0  = 0x10,
     PB_0_ALT0 = PB_0 | ALT0,
-    PB_0_ALT1 = PB_0 | ALT1,
     PB_1  = 0x11,
     PB_1_ALT0 = PB_1 | ALT0,
-    PB_1_ALT1 = PB_1 | ALT1,
     PB_2  = 0x12,
     PB_3  = 0x13,
     PB_3_ALT0 = PB_3 | ALT0,
     PB_4  = 0x14,
     PB_4_ALT0 = PB_4 | ALT0,
-    PB_4_ALT1 = PB_4 | ALT1,
     PB_5  = 0x15,
     PB_5_ALT0 = PB_5 | ALT0,
-    PB_5_ALT1 = PB_5 | ALT1,
     PB_6  = 0x16,
     PB_7  = 0x17,
     PB_8  = 0x18,
     PB_8_ALT0 = PB_8 | ALT0,
-    PB_8_ALT1 = PB_8 | ALT1,
     PB_9  = 0x19,
     PB_9_ALT0 = PB_9 | ALT0,
-    PB_9_ALT1 = PB_9 | ALT1,
     PB_10 = 0x1A,
     PB_12 = 0x1C,
-    PB_12_ALT0 = PB_12 | ALT0,
     PB_13 = 0x1D,
-    PB_13_ALT0 = PB_13 | ALT0,
     PB_14 = 0x1E,
     PB_15 = 0x1F,
 
@@ -117,13 +105,13 @@ typedef enum {
     PC_11 = 0x2B,
     PC_12 = 0x2C,
     PC_13 = 0x2D,
-    PC_14 = 0x2E,
-    PC_15 = 0x2F,
+    PC_14 = 0x2E, // Connected to RCC_OSC32_IN
+    PC_15 = 0x2F, // Connected to RCC_OSC32_OUT
 
     PD_2  = 0x32,
 
-    PH_0  = 0x70,
-    PH_1  = 0x71,
+    PH_0  = 0x70, // Connected to RCC_OSC_IN
+    PH_1  = 0x71, // Connected to RCC_OSC_OUT
 
     // ADC internal channels
     ADC_TEMP = 0xF0,
@@ -167,12 +155,12 @@ typedef enum {
 #endif
 
     // Generic signals namings
-    LED1        = PA_5,
-    LED2        = PA_5,
-    LED3        = PA_5,
-    LED4        = PA_5,
+    LED1        = PC_13,
+    LED2        = PC_13,
+    LED3        = PC_13,
+    LED4        = PC_13,
     LED_RED     = LED1,
-    USER_BUTTON = PC_13,
+    USER_BUTTON = PA_0,
     // Standardized button names
     BUTTON1 = USER_BUTTON,
     SERIAL_TX   = STDIO_UART_TX,
